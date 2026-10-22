@@ -140,20 +140,20 @@
   <form id="f" autocomplete="on">
     <div class="card">
       <div class="field">
-        <label>Имя <span class="req">*</span></label>
+        <label for="name">Имя <span class="req">*</span></label>
         <input type="text" id="name" placeholder="Как к вам обращаться" required>
         <div class="err" id="err-name">Пожалуйста, укажите имя</div>
       </div>
 
       <div class="field">
-        <label>Телефон <span class="req">*</span></label>
+        <label for="phone">Телефон <span class="req">*</span></label>
         <input type="tel" id="phone" placeholder="+7 (___) ___-__-__" required
                inputmode="tel">
         <div class="err" id="err-phone">Укажите телефон — по нему мы перезвоним</div>
       </div>
 
       <div class="field">
-        <label>Марка Вашего автомобиля <span class="req">*</span></label>
+        <label for="car">Марка Вашего автомобиля <span class="req">*</span></label>
         <input type="text" id="car" placeholder="Например: Toyota Land Cruiser" required>
         <div class="err" id="err-car">Укажите марку автомобиля</div>
       </div>
@@ -161,8 +161,8 @@
       <div class="field">
         <label>Какая услуга нужна? <span class="req">*</span></label>
         <div class="chips" id="chips">
-          <button type="button" class="chip" data-s="Ремонт рулевых реек">Ремонт рулевых реек</button>
-          <button type="button" class="chip" data-s="Ремонт дизельных ДВС">Ремонт дизельных ДВС</button>
+          <button type="button" class="chip" data-s="Ремонт рулевых реек">Рулевые рейки</button>
+          <button type="button" class="chip" data-s="Ремонт автомобилей с дизельными ДВС">Дизельные двигатели</button>
           <button type="button" class="chip" data-s="Ремонт топливной аппаратуры COMMON RAIL">Топливная аппаратура COMMON RAIL</button>
           <button type="button" class="chip" data-s="Другое">Другое</button>
         </div>
@@ -171,7 +171,7 @@
       </div>
 
       <div class="field">
-        <label>Суть обращения <span class="req">*</span></label>
+        <label for="problem">Суть обращения <span class="req">*</span></label>
         <textarea id="problem" placeholder="Что случилось с автомобилем, что нужно сделать" required></textarea>
         <div class="err" id="err-problem">Коротко опишите проблему</div>
       </div>
@@ -183,10 +183,22 @@
   <div class="done" id="done">
     <div class="big">✅</div>
     <h2>Заявка отправлена</h2>
-    <p>Мы свяжемся с вами в рабочее время и уточним детали.</p>
-    <p>Номер заявки: <span class="num" id="num">—</span></p>
+    <p>Мастер свяжется с вами в рабочее время и уточнит детали.</p>
+    <p id="num-line" style="display:none">Номер заявки: <span class="num" id="num">—</span></p>
+    <p>Подтверждение с номером придёт в чат с ботом.</p>
     <p style="margin-top:14px"><a href="tel:+73452594459">📞 +7 (3452) 59-44-59</a></p>
     <p>📍 г. Тюмень, ул. Республики, д. 256, к4</p>
+    <p style="margin-top:6px">🕘 Пн–Вс: 9:00 – 20:00</p>
+  </div>
+
+  <div class="done" id="vne-telegram">
+    <div class="big">💬</div>
+    <h2>Откройте форму в Telegram</h2>
+    <p>Заявка уходит из чата с ботом — так мастер точно её получит.</p>
+    <p style="margin-top:12px">
+      <a href="https://t.me/auto_service360_bot">Открыть @auto_service360_bot</a>
+    </p>
+    <p style="margin-top:12px"><a href="tel:+73452594459">📞 +7 (3452) 59-44-59</a></p>
   </div>
 
   <div class="foot">
@@ -225,8 +237,33 @@
   }
 
   ['name','phone','car','problem'].forEach(function (id) {
-    el(id).addEventListener('input', function () { markAll(); });
+    // Ошибку показываем только по тому полю, которое заполняют, и убираем,
+    // как только его исправили: краснеть всем полям сразу — некрасиво.
+    el(id).addEventListener('input', function () {
+      if (poleOk(id)) showErr(id, false);
+    });
+    el(id).addEventListener('blur', function () {
+      if (!poleOk(id) && (el(id).value || '').trim()) showErr(id, true);
+    });
   });
+
+  // Телефон приводим к виду +7 (912) 345-67-89, когда уходят с поля.
+  el('phone').addEventListener('blur', function () {
+    var d = (this.value || '').replace(/\D/g, '');
+    if (d.length === 11 && (d.charAt(0) === '7' || d.charAt(0) === '8')) {
+      this.value = '+7 (' + d.substr(1, 3) + ') ' + d.substr(4, 3) + '-' +
+                   d.substr(7, 2) + '-' + d.substr(9, 2);
+    } else if (d.length === 10) {
+      this.value = '+7 (' + d.substr(0, 3) + ') ' + d.substr(3, 3) + '-' +
+                   d.substr(6, 2) + '-' + d.substr(8, 2);
+    }
+  });
+
+  function poleOk(id) {
+    var v = (el(id).value || '').trim();
+    if (id === 'phone') return validPhone(v);
+    return v.length > 0;
+  }
 
   // выбор услуги кнопками
   var chips = document.querySelectorAll('.chip');
@@ -271,14 +308,16 @@
     if (tg && tg.sendData) {
       try {
         tg.sendData(JSON.stringify(data));
-        el('num').textContent = 'принята';
         done();
         return;
-      } catch (er) { /* идём обычным путём */ }
+      } catch (er) { /* пробуем другим путём */ }
     }
-    // Если открыто вне Telegram - показываем, что данные приняты локально
-    el('num').textContent = 'принята';
-    done();
+
+    // Вне Telegram заявку передать некуда — лучше сказать честно, чем
+    // показать «отправлено» и потерять клиента.
+    el('f').style.display = 'none';
+    el('vne-telegram').style.display = 'block';
+    if (tg) { try { tg.close(); } catch (er) {} }
   });
 </script>
 </body>
